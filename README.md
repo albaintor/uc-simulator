@@ -1,9 +1,9 @@
 # Simulator for UC integration drivers
 
 This project is a simulator tool that reproduces the websocket requests between the UC Remote and the integration drivers : it acts like a remote and lets
-- Launch and simulate the setup flow and fill in the input fields to configure the device(s) exposed by an integration driver
+- Launch and simulate the setup flow and fill in the input fields to configure the device(s) and entities exposed by an integration driver
 - Extract for each configured devices its entities, including : media players, sensors, selects (dropdown entities)
-- Updates entities in realtime : media player (title, artwork, position...), sensor and select values
+- Update entities in realtime : media player (title, artwork, position...), sensor and select values
 - Sends any media player command
 - Handles media browsing and search media
 
