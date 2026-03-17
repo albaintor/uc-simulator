@@ -561,7 +561,7 @@ class BrowsingData:
 
 class SetupData:
     window: tk.Toplevel | None = None
-    mapping: dict[str, ttk.Widget | tk.IntVar | tk.StringVar] = {}
+    mapping: dict[str, ttk.Widget | tk.IntVar | tk.StringVar | tk.Widget] = {}
     mapping_type: dict[str, str] = {}
     data: dict[str, Any] | None = None
 
@@ -627,7 +627,7 @@ class RemoteInterface(tk.Tk):
         start_setup_button = ttk.Button(self._left_frame, text="Start setup", command=lambda: self.setup_open())
         start_setup_button.grid(row=self._row, column=0)
 
-        self._setup_reconfigure = tk.IntVar(value=0)
+        self._setup_reconfigure = tk.IntVar(value=1)
         reconfigure_checkbox = tk.Checkbutton(self._left_frame, variable=self._setup_reconfigure, onvalue=1, offvalue=0)
         reconfigure_checkbox.grid(row=self._row, column=1, sticky="e")
         label_setup = ttk.Label(self._left_frame, text="Reconfigure devices")
@@ -1287,6 +1287,15 @@ class RemoteInterface(tk.Tk):
             self._worker._loop,
         )
 
+    def setup_confirmation(self, confirm: bool):
+        message = {"msg": "set_driver_user_data", "msg_data": {"confirm": confirm}}
+        asyncio.run_coroutine_threadsafe(
+            self._worker.send_request(message),
+            self._worker._loop,
+        )
+        for widget in self._setup_data.window.winfo_children():
+            widget.destroy()
+
     def setup_next(self):
         message = {"msg": "set_driver_user_data", "msg_data": {"input_values": {}}}
         settings: list[dict[str, Any]] = (
@@ -1297,7 +1306,7 @@ class RemoteInterface(tk.Tk):
                 if self._setup_data.mapping_type.get(key, "") == "number":
                     message["msg_data"]["input_values"][key] = widget.get()
                 else:
-                    message["msg_data"]["input_values"][key] = True if widget.get() == 1 else False
+                    message["msg_data"]["input_values"][key] = "true" if widget.get() == 1 else "false"
             elif isinstance(widget, ttk.Combobox):
                 entries = [x for x in settings if x.get("id", "") == key]
                 if len(entries) == 0:
@@ -1312,6 +1321,8 @@ class RemoteInterface(tk.Tk):
                     _LOG.error("No matching entries found in dropdown %s for selected value %s", entry, widget.get())
                     continue
                 message["msg_data"]["input_values"][key] = selected_entry[0].get("id", "")
+            elif isinstance(widget, tk.Text):
+                message["msg_data"]["input_values"][key] = widget.get("1.0", tk.END)
             else:
                 message["msg_data"]["input_values"][key] = widget.get()
         asyncio.run_coroutine_threadsafe(
@@ -1324,23 +1335,43 @@ class RemoteInterface(tk.Tk):
     def setup_action(self, data: dict[str, Any]):
         try:
             if self._setup_data.window is None or not self._setup_data.window.winfo_exists():
-                self._setup_data.window = tk.Toplevel(self, width=600, height=600)
-                self._setup_data.window.grid_columnconfigure(0, weight=1, pad=5)
-                self._setup_data.window.grid_columnconfigure(1, weight=1, pad=5)
-                self._setup_data.window.grid_columnconfigure(2, weight=1, pad=5)
-                self._setup_data.window.grid_columnconfigure(3, weight=1, pad=5)
+                self._setup_data.window = tk.Toplevel(self, width=650, height=600)
+                self._setup_data.window.grid_columnconfigure(0, weight=1, pad=2)
+                self._setup_data.window.grid_columnconfigure(1, weight=1, pad=2)
+                self._setup_data.window.grid_columnconfigure(2, weight=1, pad=2)
+                self._setup_data.window.grid_columnconfigure(3, weight=1, pad=2)
                 self._setup_data.window.grid_propagate(False)
-                self._setup_data.window.minsize(600, 600)
+                self._setup_data.window.minsize(650, 600)
             if self._setup_data.window is not None:
                 for widget in self._setup_data.window.winfo_children():
                     widget.destroy()
                 self._setup_data.window.grid_propagate(False)
-                self._setup_data.window.minsize(600, 600)
+                self._setup_data.window.minsize(650, 600)
             self._setup_data.mapping = {}
             self._setup_data.mapping_type = {}
             row = 0
             column = 0
             input_data = data.get("require_user_action", {}).get("input")
+            if input_data is None and (confirmation := data.get("require_user_action", {}).get("confirmation")):
+                if title := confirmation.get("title", {}).get("en", None):
+                    label = tk.Label(self._setup_data.window, text=title, wraplength=350)
+                    label.grid(row=row, column=column, columnspan=4, sticky="we")
+                    row += 1
+                if message1 := confirmation.get("message1", {}).get("en", None):
+                    label = tk.Label(self._setup_data.window, text=message1, wraplength=350)
+                    label.grid(row=row, column=column, columnspan=4, sticky="we")
+                    row += 1
+                submit_button = ttk.Button(
+                    self._setup_data.window, text="Yes", command=lambda: self.setup_confirmation(True)
+                )
+                submit_button.grid(row=row, column=0)
+                cancel_button = ttk.Button(
+                    self._setup_data.window, text="No", command=lambda: self.setup_confirmation(False)
+                )
+                cancel_button.grid(row=row, column=1)
+                self.update()
+                return
+
             if input_data is None:
                 if state := data.get("state"):
                     label = tk.Label(self._setup_data.window, text=state)
@@ -1354,8 +1385,8 @@ class RemoteInterface(tk.Tk):
                 return
 
             if input_field := input_data.get("title"):
-                label = tk.Label(self._setup_data.window, text=input_field.get("en", ""), wraplength=100)
-                label.grid(row=row, column=column, columnspan=4)
+                label = tk.Label(self._setup_data.window, text=input_field.get("en", ""), wraplength=350)
+                label.grid(row=row, column=column, columnspan=4, sticky="we")
                 row += 1
             if settings := input_data.get("settings"):
                 self._setup_data.data = data
@@ -1363,7 +1394,7 @@ class RemoteInterface(tk.Tk):
                     column = 0
                     field_id = setting.get("id", "")
                     if field := setting.get("label"):
-                        label = tk.Label(self._setup_data.window, text=field.get("en", ""), wraplength=100)
+                        label = tk.Label(self._setup_data.window, text=field.get("en", ""), wraplength=350)
                         label.grid(row=row, column=column, columnspan=2, sticky="w")
                         column += 2
                     if field := setting.get("field"):
@@ -1387,35 +1418,43 @@ class RemoteInterface(tk.Tk):
                         elif text := field.get("text"):
                             entry_text = tk.StringVar()
                             text_field = ttk.Entry(self._setup_data.window, textvariable=entry_text)
-                            entry_text.set(text.get("value", ""))
+                            value = text.get("value", "")
+                            if value is None:
+                                value = ""
+                            entry_text.set(value)
                             text_field.grid(row=row, column=column, columnspan=2, sticky="we")
                             self._setup_data.mapping[field_id] = entry_text
                             self._setup_data.mapping_type[field_id] = "text"
                         elif text := field.get("password"):
                             entry_text = tk.StringVar()
                             text_field = ttk.Entry(self._setup_data.window, textvariable=entry_text)
-                            entry_text.set(text.get("value", ""))
+                            value = text.get("value", "")
+                            if value is None:
+                                value = ""
+                            entry_text.set(value)
                             text_field.grid(row=row, column=column, columnspan=2, sticky="we")
                             self._setup_data.mapping[field_id] = entry_text
                             self._setup_data.mapping_type[field_id] = "password"
                         elif text := field.get("textarea"):
-                            entry_text = tk.StringVar()
-                            text_field = ttk.Entry(self._setup_data.window, textvariable=entry_text)
-                            entry_text.set(text.get("value", ""))
-                            text_field.grid(row=row, column=column, columnspan=2, sticky="we")
-                            self._setup_data.mapping[field_id] = entry_text
+                            text_area = tk.Text(self._setup_data.window, height=100)
+                            value = text.get("value", "")
+                            if value is None:
+                                value = ""
+                            text_area.insert("1.0", value)
+                            text_area.grid(row=row, column=column, columnspan=2, sticky="we")
+                            self._setup_data.mapping[field_id] = text_area
                             self._setup_data.mapping_type[field_id] = "textarea"
                         elif checkbox := field.get("checkbox"):
-                            var = tk.IntVar(value=1 if checkbox.get("value", False) else 0)
+                            var = tk.IntVar(value=1 if checkbox.get("value", "false") == "true" else 0)
                             checkbox_button = tk.Checkbutton(
                                 self._setup_data.window, variable=var, onvalue=1, offvalue=0
                             )
-                            checkbox_button.grid(row=row, column=column, columnspan=2, sticky="we")
+                            checkbox_button.grid(row=row, column=column, columnspan=2, sticky="w")
                             self._setup_data.mapping[field_id] = var
                             self._setup_data.mapping_type[field_id] = "checkbox"
                         elif label := field.get("label"):
                             label_field = ttk.Label(
-                                self._setup_data.window, text=label.get("value", {}).get("en", ""), wraplength=100
+                                self._setup_data.window, text=label.get("value", {}).get("en", ""), wraplength=350
                             )
                             label_field.grid(row=row, column=column, columnspan=4 - column, sticky="we")
                         elif text := field.get("number"):
