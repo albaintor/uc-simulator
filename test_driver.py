@@ -1354,11 +1354,11 @@ class RemoteInterface(tk.Tk):
             input_data = data.get("require_user_action", {}).get("input")
             if input_data is None and (confirmation := data.get("require_user_action", {}).get("confirmation")):
                 if title := confirmation.get("title", {}).get("en", None):
-                    label = tk.Label(self._setup_data.window, text=title, wraplength=350)
+                    label = tk.Label(self._setup_data.window, text=title, wraplength=300)
                     label.grid(row=row, column=column, columnspan=4, sticky="we")
                     row += 1
                 if message1 := confirmation.get("message1", {}).get("en", None):
-                    label = tk.Label(self._setup_data.window, text=message1, wraplength=350)
+                    label = tk.Label(self._setup_data.window, text=message1, wraplength=300)
                     label.grid(row=row, column=column, columnspan=4, sticky="we")
                     row += 1
                 submit_button = ttk.Button(
@@ -1385,7 +1385,7 @@ class RemoteInterface(tk.Tk):
                 return
 
             if input_field := input_data.get("title"):
-                label = tk.Label(self._setup_data.window, text=input_field.get("en", ""), wraplength=350)
+                label = tk.Label(self._setup_data.window, text=input_field.get("en", ""), wraplength=300)
                 label.grid(row=row, column=column, columnspan=4, sticky="we")
                 row += 1
             if settings := input_data.get("settings"):
@@ -1394,7 +1394,7 @@ class RemoteInterface(tk.Tk):
                     column = 0
                     field_id = setting.get("id", "")
                     if field := setting.get("label"):
-                        label = tk.Label(self._setup_data.window, text=field.get("en", ""), wraplength=350)
+                        label = tk.Label(self._setup_data.window, text=field.get("en", ""), wraplength=300)
                         label.grid(row=row, column=column, columnspan=2, sticky="w")
                         column += 2
                     if field := setting.get("field"):
@@ -1436,7 +1436,7 @@ class RemoteInterface(tk.Tk):
                             self._setup_data.mapping[field_id] = entry_text
                             self._setup_data.mapping_type[field_id] = "password"
                         elif text := field.get("textarea"):
-                            text_area = tk.Text(self._setup_data.window, height=100)
+                            text_area = tk.Text(self._setup_data.window, height=10)
                             value = text.get("value", "")
                             if value is None:
                                 value = ""
@@ -1454,7 +1454,7 @@ class RemoteInterface(tk.Tk):
                             self._setup_data.mapping_type[field_id] = "checkbox"
                         elif label := field.get("label"):
                             label_field = ttk.Label(
-                                self._setup_data.window, text=label.get("value", {}).get("en", ""), wraplength=350
+                                self._setup_data.window, text=label.get("value", {}).get("en", ""), wraplength=300
                             )
                             label_field.grid(row=row, column=column, columnspan=4 - column, sticky="we")
                         elif text := field.get("number"):
